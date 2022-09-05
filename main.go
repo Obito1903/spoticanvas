@@ -30,8 +30,8 @@ var (
 			spotifyauth.ScopeUserLibraryRead,
 			"playlist-read",
 		),
-		spotifyauth.WithClientID("fc2e2b5e7d2549e5811d6784fd4fd02f"),
-		spotifyauth.WithClientSecret("7f67518148c6487b9694b2c83318d073"),
+		spotifyauth.WithClientID(os.Getenv("SPOTIFY_ID")),
+		spotifyauth.WithClientSecret(os.Getenv("SPOTIFY_SECRET")),
 	)
 	ch        = make(chan *spotify.Client)
 	mpvClient *mpv.Client
