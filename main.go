@@ -7,7 +7,11 @@ import (
 	"io"
 	"log"
 	"net/http"
+	"os"
+	"os/exec"
+	"time"
 
+	"github.com/blang/mpv"
 	"github.com/zmb3/spotify/v2"
 	spotifyauth "github.com/zmb3/spotify/v2/auth"
 )
@@ -29,12 +33,13 @@ var (
 		spotifyauth.WithClientID("fc2e2b5e7d2549e5811d6784fd4fd02f"),
 		spotifyauth.WithClientSecret("7f67518148c6487b9694b2c83318d073"),
 	)
-	ch    = make(chan *spotify.Client)
-	state = "abc123"
+	ch        = make(chan *spotify.Client)
+	mpvClient *mpv.Client
+	state     = "abc123"
 )
 
 type CanvazResp struct {
-	Success   bool   `json:"success"`
+	Success   string `json:"success"`
 	CanvasUrl string `json:"canvas_url"`
 	Message   string `json:"message"`
 }
@@ -54,35 +59,62 @@ func getTrack() {
 	}
 	fmt.Println("You are logged in as:", user.ID)
 
-	currentTrack, err := client.PlayerCurrentlyPlaying(context.Background())
-	if err != nil {
-		log.Fatal(err)
-	}
-	fmt.Printf("Currently playing (id): %s (%s)\n", currentTrack.Item.Name, currentTrack.Item.ID.String())
+	currentID := ""
+	for {
+		currentTrack, err := client.PlayerCurrentlyPlaying(context.Background())
+		if err != nil {
+			fmt.Println("here !")
+			log.Println(err)
+		}
+		if currentID != currentTrack.Item.ID.String() {
+			currentID = currentTrack.Item.ID.String()
+			fmt.Printf("Currently playing (id): %s (%s)\n", currentTrack.Item.Name, currentTrack.Item.ID.String())
 
-	resp, err := http.DefaultClient.Get(fmt.Sprintf("https://api.delitefully.com/api/canvas/%s", currentTrack.Item.ID.String()))
-	if err != nil {
-		log.Fatal(err)
-	}
+			resp, err := http.DefaultClient.Get(fmt.Sprintf("https://api.delitefully.com/api/canvas/%s", currentTrack.Item.ID.String()))
+			if err != nil {
+				log.Fatal(err)
+			}
 
-	respBody, err := io.ReadAll(resp.Body)
-	if err != nil {
-		log.Fatal(err)
-	}
-	canvazResp := CanvazResp{}
-	err = json.Unmarshal(respBody, &canvazResp)
-	if err != nil {
-		log.Fatal(err)
-	}
+			respBody, err := io.ReadAll(resp.Body)
+			if err != nil {
+				log.Fatal(err)
+			}
+			canvazResp := CanvazResp{}
+			err = json.Unmarshal(respBody, &canvazResp)
+			if err != nil {
+				log.Fatal(err)
+			}
+			if canvazResp.Success == "true" {
+				fmt.Println(canvazResp)
+				mpvClient.Loadfile(canvazResp.CanvasUrl, mpv.LoadFileModeReplace)
+			} else {
+				fmt.Println("No canvas found")
+				img := currentTrack.Item.Album.Images[0].URL
+				mpvClient.Loadfile(img, mpv.LoadFileModeReplace)
+			}
 
-	fmt.Println(canvazResp)
+		}
 
+		time.Sleep(1 * time.Second)
+
+	}
 }
 
 func main() {
 
 	http.HandleFunc("/callback", completeAuth)
 
+	cmd := exec.Command("mpv", "--idle", "--input-ipc-server=/tmp/mpvsocket")
+	cmd.Stdout = os.Stdout
+	err := cmd.Start()
+	time.Sleep(1 * time.Second)
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	ipcc := mpv.NewIPCClient("/tmp/mpvsocket") // Lowlevel client
+	mpvClient = mpv.NewClient(ipcc)            // Highlevel client, can also use RPCClient
+	mpvClient.SetProperty("loop", true)
 	go getTrack()
 
 	http.ListenAndServe(":8080", nil)

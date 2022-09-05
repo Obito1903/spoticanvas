@@ -1,0 +1,5 @@
+# Spoticanvas
+
+## Requirement
+
+- mpv
