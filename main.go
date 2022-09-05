@@ -24,11 +24,6 @@ var (
 		spotifyauth.WithScopes(
 			spotifyauth.ScopeUserReadCurrentlyPlaying,
 			spotifyauth.ScopeUserReadPlaybackState,
-			spotifyauth.ScopeUserModifyPlaybackState,
-			spotifyauth.ScopePlaylistReadCollaborative,
-			spotifyauth.ScopePlaylistReadPrivate,
-			spotifyauth.ScopeUserLibraryRead,
-			"playlist-read",
 		),
 		spotifyauth.WithClientID(os.Getenv("SPOTIFY_ID")),
 		spotifyauth.WithClientSecret(os.Getenv("SPOTIFY_SECRET")),
