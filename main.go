@@ -62,9 +62,11 @@ func getTrack() {
 	currentID := ""
 	for {
 		currentTrack, err := client.PlayerCurrentlyPlaying(context.Background())
-		if err != nil {
+		if err != nil || currentTrack.Item == nil {
 			fmt.Println("here !")
 			log.Println(err)
+			time.Sleep(1 * time.Second)
+			continue
 		}
 		if currentID != currentTrack.Item.ID.String() {
 			currentID = currentTrack.Item.ID.String()
