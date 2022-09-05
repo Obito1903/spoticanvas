@@ -28,9 +28,11 @@ var (
 		spotifyauth.WithClientID(os.Getenv("SPOTIFY_ID")),
 		spotifyauth.WithClientSecret(os.Getenv("SPOTIFY_SECRET")),
 	)
-	ch        = make(chan *spotify.Client)
-	mpvClient *mpv.Client
-	state     = "abc123"
+	ch         = make(chan *spotify.Client)
+	mpvClient  *mpv.Client
+	mpvClient1 *mpv.Client
+	mpvClient2 *mpv.Client
+	state      = "abc123"
 )
 
 type CanvazResp struct {
@@ -84,10 +86,15 @@ func getTrack() {
 			if canvazResp.Success == "true" {
 				fmt.Println(canvazResp)
 				mpvClient.Loadfile(canvazResp.CanvasUrl, mpv.LoadFileModeReplace)
+				mpvClient1.Loadfile(canvazResp.CanvasUrl, mpv.LoadFileModeReplace)
+				mpvClient1.Seek(1, mpv.SeekModeAbsolute)
+				mpvClient2.Loadfile(canvazResp.CanvasUrl, mpv.LoadFileModeReplace)
 			} else {
 				fmt.Println("No canvas found")
 				img := currentTrack.Item.Album.Images[0].URL
 				mpvClient.Loadfile(img, mpv.LoadFileModeReplace)
+				mpvClient1.Loadfile(img, mpv.LoadFileModeReplace)
+				mpvClient2.Loadfile(img, mpv.LoadFileModeReplace)
 			}
 
 		}
@@ -104,6 +111,12 @@ func main() {
 	cmd := exec.Command("mpv", "--idle", "--input-ipc-server=/tmp/mpvsocket")
 	cmd.Stdout = os.Stdout
 	err := cmd.Start()
+	cmd = exec.Command("mpv", "--idle", "--input-ipc-server=/tmp/mpvsocket1")
+	cmd.Stdout = os.Stdout
+	err = cmd.Start()
+	cmd = exec.Command("mpv", "--idle", "--input-ipc-server=/tmp/mpvsocket2")
+	cmd.Stdout = os.Stdout
+	err = cmd.Start()
 	time.Sleep(1 * time.Second)
 	if err != nil {
 		log.Fatal(err)
@@ -112,6 +125,12 @@ func main() {
 	ipcc := mpv.NewIPCClient("/tmp/mpvsocket") // Lowlevel client
 	mpvClient = mpv.NewClient(ipcc)            // Highlevel client, can also use RPCClient
 	mpvClient.SetProperty("loop", true)
+	ipcc = mpv.NewIPCClient("/tmp/mpvsocket1") // Lowlevel client
+	mpvClient1 = mpv.NewClient(ipcc)           // Highlevel client, can also use RPCClient
+	mpvClient1.SetProperty("loop", true)
+	ipcc = mpv.NewIPCClient("/tmp/mpvsocket2") // Lowlevel client
+	mpvClient2 = mpv.NewClient(ipcc)           // Highlevel client, can also use RPCClient
+	mpvClient2.SetProperty("loop", true)
 	go getTrack()
 
 	http.ListenAndServe(":8080", nil)
